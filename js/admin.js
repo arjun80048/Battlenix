@@ -3,7 +3,9 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/fi
 import {
   collection,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  doc,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 function generateMatchNumber() {
@@ -12,15 +14,23 @@ function generateMatchNumber() {
   return `BNX-${year}-${random}`;
 }
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (!user) {
     location.href = "index.html";
+    return;
+  }
+
+  // 🔐 ADMIN CHECK
+  const snap = await getDoc(doc(db, "users", user.uid));
+  if (!snap.exists() || snap.data().role !== "admin") {
+    alert("Access denied. Admin only.");
+    location.href = "dashboard.html";
+    return;
   }
 });
 
 window.createMatch = async function () {
   const game = document.getElementById("game").value;
-
   if (!game) {
     alert("Game name required");
     return;
@@ -29,8 +39,8 @@ window.createMatch = async function () {
   const matchNumber = generateMatchNumber();
 
   await addDoc(collection(db, "matches"), {
-    matchNumber: matchNumber,
-    game: game,
+    matchNumber,
+    game,
     status: "waiting",
     createdBy: auth.currentUser.uid,
     createdAt: serverTimestamp(),
